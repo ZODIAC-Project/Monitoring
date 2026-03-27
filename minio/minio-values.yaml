@@ -1,0 +1,47 @@
+# The Values here are to to high for local minikube testing
+mode: standalone
+replicas: 1
+drivesPerNode: 1 
+
+persistence:
+  enabled: true
+  storageClass: zfs
+  size: 50Gi
+
+rootUser: "minio"
+rootPassword: "minio12345"
+
+buckets:
+  - name: "loki-chunks"
+    policy: "none"
+  - name: "loki-ruler"
+    policy: "none"
+  - name: "loki-admin"
+    policy: "none"
+
+resources:
+  requests:
+    memory: 2Gi
+    cpu: 500m
+  limits:
+    memory: 4Gi
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsGroup: 1000
+  runAsUser: 1000
+
+containerSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  allowPrivilegeEscalation: false
+
+extraInitContainers:
+- name: fix-permissions
+  image: busybox
+  command: ["sh", "-c", "chown -R 1000:1000 /export && chmod -R u+rwx /export"]
+  securityContext:
+    runAsUser: 0
+  volumeMounts:
+    - name: export
+      mountPath: /export

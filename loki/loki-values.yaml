@@ -1,0 +1,73 @@
+loki:
+  rbac:
+    clusterRoleName: "loki-clusterrole-logging"
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+    path_prefix: /var/loki 
+  storage:
+    type: 's3'
+    bucketNames:
+      chunks: loki-chunks
+      ruler:  loki-ruler
+      admin:  loki-admin
+    s3:
+      endpoint: minio.logging.svc.cluster.local:9000
+      region: eu-central-1
+      accessKeyId: "minio" 
+      secretAccessKey: "minio12345"
+      s3ForcePathStyle: true
+      insecure: true
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb 
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+deploymentMode: SimpleScalable
+test: { enabled: false }
+lokiCanary: { enabled: false }
+
+backend:
+  replicas: 1
+  pdb: { enabled: false }
+  persistence:
+    storageClass: "zfs"
+    size: 10Gi
+  podSecurityContext:
+    fsGroup: 10001
+    runAsGroup: 10001
+    runAsUser: 10001
+
+read:
+  replicas: 1
+  pdb: { enabled: false }
+  persistence:
+    storageClass: "zfs"
+    size: 10Gi
+  podSecurityContext:
+    fsGroup: 10001
+    runAsGroup: 10001
+    runAsUser: 10001
+
+write:
+  replicas: 2
+  pdb: { enabled: false }
+  persistence:
+    storageClass: "zfs"
+    size: 10Gi
+  podSecurityContext:
+    fsGroup: 10001
+    runAsGroup: 10001
+    runAsUser: 10001
+
+gateway:
+  enabled: true
+  podDisruptionBudget: { enabled: false }
+
+chunksCache: { enabled: false }
+resultsCache: { enabled: false }
