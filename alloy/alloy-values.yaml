@@ -1,55 +1,8 @@
 alloy:
   configMap:
-    content: |
-      // --- LOGS ENTDECKEN ---
-      // Suche alle Pods auf diesem Node
-      discovery.kubernetes "pods" {
-        role = "pod"
-      }
-
-      // --- LABELS VERARBEITEN ---
-      // Wir extrahieren Namespace, Pod-Name und Container-Name aus den K8s-Metadaten
-      discovery.relabel "pod_logs" {
-        targets = discovery.kubernetes.pods.targets
-        rule {
-          source_labels = ["__meta_kubernetes_namespace"]
-          target_label  = "namespace"
-        }
-        rule {
-          source_labels = ["__meta_kubernetes_pod_name"]
-          target_label  = "pod"
-        }
-        rule {
-          source_labels = ["__meta_kubernetes_pod_container_name"]
-          target_label  = "container"
-        }
-        // Dieser Schritt ist wichtig, damit Alloy weiß, wo die Log-Datei auf der Disk liegt
-        rule {
-          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
-          separator     = "/"
-          action        = "replace"
-          replacement   = "/var/log/pods/*$1/*.log"
-          target_label  = "__path__"
-        }
-      }
-
-      // --- LOGS LESEN ---
-      local.file_match "pod_logs" {
-        path_targets = discovery.relabel.pod_logs.output
-      }
-
-      loki.source.file "pod_logs" {
-        targets    = local.file_match.pod_logs.targets
-        forward_to = [loki.write.local_loki.receiver]
-      }
-
-      // --- LOGS AN LOKI SENDEN ---
-      loki.write "local_loki" {
-        endpoint {
-          // Die URL deines Loki-Gateways im gleichen Namespace
-          url = "http://loki-gateway.logging.svc.cluster.local/loki/api/v1/push"
-        }
-      }
+    create: false
+    name: alloy-config
+    key: config.alloy
 
 controller:
   resources:
@@ -58,3 +11,38 @@ controller:
       memory: 2Gi
     limits:
       memory: 4Gi
+
+rbac:
+  create: false
+
+serviceAccount:
+  create: true
+  name: alloy
+
+extraObjects:
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: alloy
+    rules:
+      - apiGroups: [""]
+        resources: ["pods", "pods/log", "namespaces", "services", "endpoints", "events", "configmaps", "secrets", "nodes"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: ["apps"]
+        resources: ["replicasets"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: ["monitoring.coreos.com"]
+        resources: ["servicemonitors"]
+        verbs: ["get", "list", "watch"]
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: alloy
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: alloy
+    subjects:
+      - kind: ServiceAccount
+        name: alloy
+        namespace: logging
