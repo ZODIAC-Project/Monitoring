@@ -1,3 +1,20 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: zodiac
+  name: grafana-ini
+  labels:
+    app: grafana
+  # ConfigMap for Grafana main config
+  # Allows embedding in iframe
+  # Managed by Copilot
+  
+data:
+  grafana.ini: |
+    [security]
+    allow_embedding = true
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -86,6 +103,8 @@ spec:
             value: "/chat"
           - name: VITE_AGENT_API_BASE
             value: /agent-api
+          - name: VITE_GRAFANA_URL
+            value: "http://localhost:3001" # Hier gewünschte Grafana-URL eintragen
           ports:
             - containerPort: 80
           volumeMounts:
@@ -195,7 +214,8 @@ spec:
               value: http://elise.ise.tu-berlin.de:11434
             - name: AGENT_LLM_MODEL
               #value: qwen2.5:0.5b
-              value: qwen3:8b-q4_K_M
+              #value: qwen3:8b-q4_K_M
+              value: gemma4:e2b
             - name: AGENT_LLM_TIMEOUT_MS
               value: "2000"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -243,7 +263,8 @@ spec:
               value: http://elise.ise.tu-berlin.de:11434
             - name: AGENT_LLM_MODEL
               #value: qwen2.5:0.5b
-              value: qwen3:8b-q4_K_M
+              #value: qwen3:8b-q4_K_M
+              value: gemma4:e2b
             - name: AGENT_LLM_TIMEOUT_MS
               value: "2000"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -409,7 +430,8 @@ spec:
           value: "http://mcp-server-service.zodiac.svc.cluster.local:8000/mcp"
         - name: MODEL
           #value: "qwen2.5:0.5b"
-          value: "qwen3:8b-q4_K_M"
+          #value: "qwen3:8b-q4_K_M"
+          value: "gemma4:e2b"
         ports:
         - containerPort: 8000
 ---
@@ -991,6 +1013,9 @@ spec:
             - name: grafana-dashboards
               mountPath: /var/lib/grafana/dashboards/agent-monitoring.json
               subPath: agent-monitoring.json
+            - name: grafana-ini
+              mountPath: /etc/grafana/grafana.ini
+              subPath: grafana.ini
       volumes:
         - name: grafana-data
           emptyDir: {}
@@ -1003,6 +1028,9 @@ spec:
         - name: grafana-dashboards
           configMap:
             name: grafana-dashboards
+        - name: grafana-ini
+          configMap:
+            name: grafana-ini
 ---
 apiVersion: v1
 kind: Service
