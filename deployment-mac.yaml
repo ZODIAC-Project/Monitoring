@@ -214,7 +214,8 @@ spec:
               value: http://elise.ise.tu-berlin.de:11434
             - name: AGENT_LLM_MODEL
               #value: qwen2.5:0.5b
-              value: qwen3:8b-q4_K_M
+              #value: qwen3:8b-q4_K_M
+              value: gemma4:e2b
             - name: AGENT_LLM_TIMEOUT_MS
               value: "2000"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -262,7 +263,8 @@ spec:
               value: http://elise.ise.tu-berlin.de:11434
             - name: AGENT_LLM_MODEL
               #value: qwen2.5:0.5b
-              value: qwen3:8b-q4_K_M
+              #value: qwen3:8b-q4_K_M
+              value: gemma4:e2b
             - name: AGENT_LLM_TIMEOUT_MS
               value: "2000"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -428,7 +430,8 @@ spec:
           value: "http://mcp-server-service.zodiac.svc.cluster.local:8000/mcp"
         - name: MODEL
           #value: "qwen2.5:0.5b"
-          value: "qwen3:8b-q4_K_M"
+          #value: "qwen3:8b-q4_K_M"
+          value: "gemma4:e2b"
         ports:
         - containerPort: 8000
 ---
