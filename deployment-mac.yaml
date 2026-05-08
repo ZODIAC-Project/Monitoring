@@ -605,6 +605,10 @@ data:
       - job_name: "otel-collector"
         static_configs:
           - targets: ["otel-collector.zodiac.svc.cluster.local:8889"]
+      - job_name: "agent-api"
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["agent-api.zodiac.svc.cluster.local:3000"]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -918,7 +922,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(agent_create_total[5m]))",
+              "expr": "sum(agent_create_total)",
               "legendFormat": "create"
             }
           ]
@@ -930,7 +934,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum(rate(agent_job_duration_ms_milliseconds_bucket[5m])) by (le))",
+              "expr": "histogram_quantile(0.95, sum(rate(agent_job_duration_ms_bucket[5m])) by (le))",
               "legendFormat": "p95"
             }
           ]
@@ -942,7 +946,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum(rate(agent_mcp_request_duration_ms_milliseconds_bucket[5m])) by (le))",
+              "expr": "histogram_quantile(0.95, sum(rate(agent_mcp_request_duration_ms_bucket[5m])) by (le))",
               "legendFormat": "p95"
             }
           ]

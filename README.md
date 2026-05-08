@@ -52,13 +52,15 @@ Ein Dashboard wird automatisch provisioniert: "Agent Monitoring".
 Abgedeckte Metriken:
 
 - agent_create_total
+- agent_active_count
 - agent_jobs_total
-- agent_job_duration_ms_milliseconds_bucket (p95)
-- agent_mcp_request_duration_ms_milliseconds_bucket (p95)
+- agent_job_duration_ms_bucket (p95)
+- agent_mcp_request_duration_ms_bucket (p95)
 - agent_handoff_enqueued_total
 - agent_spawned_children_total
 
-Hinweis: Die Histogramme tragen den Suffix `_milliseconds` durch die OTel-Export-Semantik.
+Der Agent-API-Service stellt seine Prometheus-Metriken jetzt direkt auf
+`/metrics` bereit und wird von Prometheus unter dem Job `agent-api` gescrapt.
 
 ## Log-Shipping (Promtail -> Loki)
 
@@ -77,4 +79,3 @@ OTEL_RESOURCE_ATTRIBUTES=service.name=agent-worker,service.version=dev
 ```
 
 Fuer die Agent-API entsprechend `service.name=agent-api`.
-
