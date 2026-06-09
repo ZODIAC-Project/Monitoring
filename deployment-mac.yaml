@@ -477,6 +477,12 @@ spec:
         env:
         - name: LOGGING_LEVEL
           value: "DEBUG"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-collector.zodiac.svc.cluster.local:4318
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: http/protobuf
+        - name: OTEL_SERVICE_NAME
+          value: mcp-server
         ports:
         - containerPort: 8000
 
@@ -605,10 +611,10 @@ data:
       - job_name: "otel-collector"
         static_configs:
           - targets: ["otel-collector.zodiac.svc.cluster.local:8889"]
-      - job_name: "new-agent"
+      - job_name: "agent"
         metrics_path: /metrics
         static_configs:
-          - targets: ["new-agent-service.zodiac.svc.cluster.local:30086"]
+          - targets: ["agent-api.zodiac.svc.cluster.local:30086"]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -897,16 +903,107 @@ data:
   agent-monitoring.json: |
     {
       "uid": "agent-monitoring",
-      "title": "Agent Monitoring",
+      "title": "Agent Monitoring & Traces",
       "schemaVersion": 38,
-      "version": 1,
+      "version": 2,
       "timezone": "browser",
       "refresh": "10s",
+      "tags": ["agent", "otel", "tempo", "tracing"],
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "templating": {
+        "list": [
+          {
+            "name": "traceId",
+            "label": "Trace ID",
+            "type": "textbox",
+            "hide": 0,
+            "query": "",
+            "current": {
+              "selected": false,
+              "text": "",
+              "value": ""
+            }
+          }
+        ]
+      },
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
       "panels": [
         {
+          "type": "stat",
+          "title": "New Agent Up",
+          "gridPos": { "x": 0, "y": 0, "w": 6, "h": 5 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "up{job=\"agent\"}",
+              "legendFormat": "up"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Active Agents",
+          "gridPos": { "x": 6, "y": 0, "w": 6, "h": 5 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "agent_active_count",
+              "legendFormat": "active"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Agents Created (5m)",
+          "gridPos": { "x": 12, "y": 0, "w": 6, "h": 5 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "increase(agent_create_total[5m])",
+              "legendFormat": "created"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Avg MCP Request (ms)",
+          "gridPos": { "x": 18, "y": 0, "w": 6, "h": 5 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(agent_mcp_request_duration_ms_sum[5m]) / rate(agent_mcp_request_duration_ms_count[5m])",
+              "legendFormat": "avg"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms"
+            },
+            "overrides": []
+          }
+        },
+        {
           "type": "timeseries",
-          "title": "Agent Jobs / s",
-          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+          "title": "Agent Jobs by Status",
+          "gridPos": { "x": 0, "y": 5, "w": 12, "h": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
@@ -917,63 +1014,48 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "Agent Create / s",
-          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+          "title": "Durations",
+          "gridPos": { "x": 12, "y": 5, "w": 12, "h": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(agent_create_total)",
-              "legendFormat": "create"
+              "expr": "rate(agent_job_duration_ms_sum[5m]) / rate(agent_job_duration_ms_count[5m])",
+              "legendFormat": "job avg"
+            },
+            {
+              "expr": "rate(agent_mcp_request_duration_ms_sum[5m]) / rate(agent_mcp_request_duration_ms_count[5m])",
+              "legendFormat": "mcp avg"
             }
-          ]
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms"
+            },
+            "overrides": []
+          }
         },
         {
-          "type": "timeseries",
-          "title": "Job Duration p95 (ms)",
-          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.95, sum(rate(agent_job_duration_ms_bucket[5m])) by (le))",
-              "legendFormat": "p95"
-            }
-          ]
+          "type": "text",
+          "title": "Trace Usage",
+          "gridPos": { "x": 0, "y": 13, "w": 24, "h": 4 },
+          "options": {
+            "mode": "markdown",
+            "content": "Fuege oben eine Trace-ID in `traceId` ein, um den Trace unten direkt aus Tempo zu laden. Du kannst auch eine Dashboard-URL mit `?var-traceId=<trace-id>` aufrufen oder eine Trace-ID aus Explore uebernehmen."
+          }
         },
         {
-          "type": "timeseries",
-          "title": "MCP Request p95 (ms)",
-          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "type": "traces",
+          "title": "Selected Trace",
+          "gridPos": { "x": 0, "y": 17, "w": 24, "h": 12 },
+          "datasource": { "type": "tempo", "uid": "tempo" },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum(rate(agent_mcp_request_duration_ms_bucket[5m])) by (le))",
-              "legendFormat": "p95"
+              "refId": "A",
+              "queryType": "traceql",
+              "query": "${traceId}"
             }
-          ]
-        },
-        {
-          "type": "timeseries",
-          "title": "Handoffs / s",
-          "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "targets": [
-            {
-              "expr": "sum(rate(agent_handoff_enqueued_total[5m]))",
-              "legendFormat": "handoffs"
-            }
-          ]
-        },
-        {
-          "type": "timeseries",
-          "title": "Spawned Children / s",
-          "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "targets": [
-            {
-              "expr": "sum(rate(agent_spawned_children_total[5m]))",
-              "legendFormat": "spawned"
-            }
-          ]
+          ],
+          "options": {}
         }
       ]
     }
